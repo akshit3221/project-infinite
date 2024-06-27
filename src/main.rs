@@ -1,60 +1,35 @@
-use actix_web::{web, App, HttpServer, Responder, HttpResponse};
-use serde::{Deserialize, Serialize};
-use mongodb::{Client, options::ClientOptions, Database, Collection, bson::{doc, oid::ObjectId}};
-use std::env;
+// main.rs
+
+mod models;
+mod routes;
+mod db;
+
+use actix_web::{web, App, HttpServer};
 use dotenv::dotenv;
 use tokio::sync::Mutex;
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-struct User {
-    name: String,
-    email_id: String,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-struct CreateUserResponse {
-    id: ObjectId,
-    name: String,
-    email_id: String,
-}
-
-async fn get_database() -> Database {
-    dotenv().ok();
-    let mongodb_uri = env::var("MONGODB_URI").expect("MONGODB_URI must be set");
-    let client_options = ClientOptions::parse(&mongodb_uri).await.unwrap();
-    let client = Client::with_options(client_options).unwrap();
-    client.database("test_db")
-}
-
-#[actix_web::post("/users")]
-async fn create_user(
-    user_data: web::Json<User>,
-    db: web::Data<Mutex<Database>>,
-) -> impl Responder {
-    let collection: Collection<User> = db.lock().await.collection("users");
-    let user = user_data.into_inner();
-    let insert_result = collection.insert_one(user.clone(), None).await.unwrap();
-    let new_id = insert_result.inserted_id.as_object_id().unwrap();
-
-    HttpResponse::Created().json(CreateUserResponse {
-        id: new_id,
-        name: user.name,
-        email_id: user.email_id,
-    })
-}
+use env_logger::Env;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    let db = get_database().await;
+    dotenv().ok();  // Load environment variables from .env file
+    env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
+
+    let db = db::get_database().await;
     let db = web::Data::new(Mutex::new(db));
+
+    println!("Starting server at http://127.0.0.1:8080");
 
     HttpServer::new(move || {
         App::new()
             .app_data(db.clone())
-            .service(create_user)
+            .configure(routes::init_routes)
     })
     .bind(("127.0.0.1", 8080))?
     .workers(2)
     .run()
     .await
+    .map_err(|e| {
+        println!("Server error: {}", e);
+        e
+    })
 }
