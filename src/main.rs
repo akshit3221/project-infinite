@@ -23,6 +23,9 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .app_data(db.clone())
             .configure(routes::init_routes)
+            .service(fs::Files::new("/", "./static").index_file("index.html"))
+            .route("/fetch_data", web::get().to(fetch_data))
+            .route("/login_url", web::get().to(login_url))
     })
     .bind(("127.0.0.1", 8080))?
     .workers(2)
