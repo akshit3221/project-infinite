@@ -1,11 +1,12 @@
 mod database;
-
+mod upload;
 use actix_session::{storage::CookieSessionStore, Session, SessionMiddleware};
-use actix_web::{get, web, App, HttpResponse, HttpServer, Responder, Result};
+use actix_web::{get, web, App, HttpResponse, HttpServer, Responder};
 use database::{MongoDB, User};
 use std::env;
 use chrono::Utc;
 use actix_files::{NamedFile, Files};
+use upload::handle_upload;
 
 struct AppState {
     db: MongoDB,
@@ -15,104 +16,11 @@ async fn get_user_data(db: &MongoDB, telegram_id: i64) -> Result<Option<User>, m
     db.find_user_by_telegram_id(telegram_id).await
 }
 
-#[get("/user")]
-async fn user_page(session: Session, data: web::Data<AppState>) -> impl Responder {
-    if let Some(logged_in) = session.get::<bool>("logged-in").unwrap() {
-        if logged_in {
-            if let Some(telegram_id) = session.get::<i64>("telegram_id").unwrap() {
-                match get_user_data(&data.db, telegram_id).await {
-                    Ok(Some(user_data)) => {
-                        let mut html = if let Some(last_name) = &user_data.last_name {
-                            format!("<h1>Hello, {} {}!</h1>", user_data.first_name, last_name)
-                        } else {
-                            format!("<h1>Hello, {}!</h1>", user_data.first_name)
-                        };
-
-                        if let Some(profile_picture) = &user_data.profile_picture {
-                            html += &format!(
-                                r#"<a href="{}" target="_blank"><img class="profile-picture" src="{}?v={}"></a>"#,
-                                profile_picture,
-                                profile_picture,
-                                Utc::now().timestamp()
-                            );
-                        }
-
-                        html += &format!(
-                            "<h2 class='user-data'>First Name: {}</h2>",
-                            user_data.first_name
-                        );
-
-                        if let Some(last_name) = &user_data.last_name {
-                            html += &format!(
-                                "<h2 class='user-data'>Last Name: {}</h2>",
-                                last_name
-                            );
-                        }
-
-                        if let Some(username) = &user_data.telegram_username {
-                            html += &format!(
-                                r#"<h2 class='user-data'>Username: <a href="https://t.me/{}" target="_blank">@{}</a></h2>"#,
-                                username,
-                                username
-                            );
-                        }
-
-                        html += &format!(
-                            "<h2 class='user-data'>Telegram ID: {}</h2>",
-                            user_data.telegram_id
-                        );
-
-                        if let Some(user_id) = &user_data.id {
-                            html += &format!(
-                                "<h2 class='user-data'>User ID: {}</h2>",
-                                user_id
-                            );
-                        }
-
-                        html += r#"<a href="/logout"><h2 class='logout'>Logout</h2></a>"#;
-
-                        return HttpResponse::Ok().content_type("text/html").body(format!(
-                            r#"
-                            <!DOCTYPE html>
-                            <html lang="en-US">
-                            <head>
-                                <title>Logged In User</title>
-                                <meta charset="UTF-8">
-                                <meta name="viewport" content="width=device-width, initial-scale=1">
-                                <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Nanum+Gothic">
-                                <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
-                                <link rel="stylesheet" href="assets/style.css">
-                            </head>
-                            <body>
-                                <div class="middle-center">
-                                    {}
-                                </div>
-                            </body>
-                            </html>
-                            "#,
-                            html
-                        ));
-                    }
-                    Ok(None) => {
-                        return HttpResponse::NotFound()
-                            .body("User not found");
-                    }
-                    Err(_) => {
-                        return HttpResponse::InternalServerError()
-                            .body("Failed to retrieve user data");
-                    }
-                }
-            }
-        }
-    }
-
-    HttpResponse::Found().append_header(("Location", "/login")).finish()
-}
 
 #[get("/login")]
 async fn login_page() -> impl Responder {
     // Load the HTML file
-    let path: std::path::PathBuf = "./static/login.html".parse().unwrap();
+    let path: std::path::PathBuf = "./static/index.html".parse().unwrap();
     NamedFile::open(path)
 }
 
@@ -126,20 +34,25 @@ async fn logout(session: Session) -> impl Responder {
 async fn main() -> std::io::Result<()> {
     dotenv::dotenv().ok();
     let db = MongoDB::new().await.expect("Failed to initialize MongoDB");
+    let token = env::var("TELEGRAM_BOT_TOKEN").expect("TELEGRAM_BOT_TOKEN must be set");
 
     HttpServer::new(move || {
         App::new()
             .app_data(web::Data::new(AppState { db: db.clone() }))
+            .app_data(web::Data::new(token.clone()))
             .wrap(SessionMiddleware::new(
                 CookieSessionStore::default(),
                 actix_web::cookie::Key::generate(),
             ))
-            .service(user_page)
+            
             .service(login_page)
             .service(logout)
             .service(Files::new("/static", "./static").show_files_listing())
+            .service(web::resource("/upload").route(web::get().to(handle_upload)))
+            .route("/upload", web::post().to(handle_upload))
     })
     .bind("127.0.0.1:8080")?
     .run()
     .await
 }
+

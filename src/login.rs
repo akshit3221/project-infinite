@@ -1,6 +1,6 @@
+use actix_files::NamedFile;
 use actix_session::{storage::CookieSessionStore, SessionMiddleware};
 use actix_web::{web, App, HttpResponse, HttpServer, Responder, Result};
-use actix_files::NamedFile;
 use std::env;
 use std::path::PathBuf;
 
@@ -9,14 +9,16 @@ struct AppState {
 }
 
 // Handler to serve the login page
-async fn login_page(data: web::Data<AppState>) -> Result<NamedFile> {
+async fn login_page(data: web::Data<AppState>) -> Result<HttpResponse> {
     // Load the HTML file
     let path: PathBuf = "./static/login.html".parse().unwrap();
     let bot_username = &data.bot_username;
     let content = std::fs::read_to_string(&path)?;
     let content = content.replace("<?= BOT_USERNAME ?>", bot_username);
 
-    Ok(NamedFile::from_file(path)?.set_content(content.into()))
+    Ok(HttpResponse::Ok()
+        .content_type("text/html; charset=utf-8")
+        .body(content))
 }
 
 #[actix_web::main]

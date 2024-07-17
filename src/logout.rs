@@ -30,6 +30,6 @@ async fn main() -> std::io::Result<()> {
 
 async fn login_page() -> impl Responder {
     // Load the HTML file
-    let path: std::path::PathBuf = "./static/login.html".parse().unwrap();
+    let path: std::path::PathBuf = "./static/index.html".parse().unwrap();
     actix_files::NamedFile::open(path)
 }

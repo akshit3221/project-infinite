@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Custom File Upload</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<h2>Upload Your Files <span>Here</span></h2>
+
+<div class="custom-file-upload">
+    <input type="file" id="file" name="myfiles[]" multiple />
+    <label for="file" class="file-label">Choose Files</label>
+    <div id="file-list"></div>
+    <button onclick="uploadFiles()">Upload</button>
+</div>
+
+<script>
+    const fileInput = document.getElementById('file');
+    const fileList = document.getElementById('file-list');
+
+    fileInput.addEventListener('change', () => {
+        fileList.innerHTML = '';
+        for (const file of fileInput.files) {
+            const li = document.createElement('li');
+            li.textContent = file.name;
+            fileList.appendChild(li);
+        }
+    });
+
+    async function uploadFiles() {
+        const files = fileInput.files;
+        const formData = new FormData();
+
+        for (const file of files) {
+            formData.append('files', file);
+        }
+
+        const response = await fetch('/upload', {
+            method: 'POST',
+            body: formData,
+        });
+
+        if (response.ok) {
+            alert('Files uploaded successfully');
+        } else {
+            alert('Failed to upload files');
+        }
+    }
+</script>
+
+</body>
+</html>
