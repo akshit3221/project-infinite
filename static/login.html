@@ -9,22 +9,23 @@
     <h1>Sign Up & Login With Telegram</h1>
     <div class="middle-center">
         <h1>Hello, Anonymous!</h1>
-        <script async src="https://telegram.org/js/telegram-widget.js?22" 
-                data-telegram-login="<?= BOT_USERNAME?>"  
-                data-size="large" 
-                data-onauth="onTelegramAuth(user)" 
-                data-request-access = "write"></script>
-    </div>
-    <script type="text/javascript">
-        function onTelegramAuth(user) {
+        <script async src="https://telegram.org/js/telegram-widget.js?22" data-telegram-login="iingiibot" data-size="large" data-onauth="onTelegramAuth(user)" data-request-access="write"></script>
+        <script type="text/javascript">
+          function onTelegramAuth(user) {
             alert('Logged in as ' + user.first_name + ' ' + user.last_name + ' (' + user.id + (user.username ? ', @' + user.username : '') + ')');
-
-            // Store user info in local storage
-            localStorage.setItem('user_id', user.id);
-
-            // Redirect to upload page
-            window.location.href = '/upload';
-        }
-    </script>
+          }
+        </script>
+        <script async src="https://telegram.org/js/telegram-widget.js?22" data-telegram-login="iingiibot" data-size="large" data-onauth="onTelegramAuth(user)" data-request-access="write"></script>
+        <script type="text/javascript">
+          function onTelegramAuth(user) {
+            alert('Logged in as ' + user.first_name + ' ' + user.last_name + ' (' + user.id + (user.username ? ', @' + user.username : '') + ')');
+        
+                    localStorage.setItem('user_id', user.id);
+        
+                    // Redirect to upload page
+                    window.location.href = 'https://ad89-2409-4056-11c-85d0-11ea-73ea-ce0c-946e.ngrok-free.app/upload';
+          }
+        </script>
+    
 </body>
 </html>
