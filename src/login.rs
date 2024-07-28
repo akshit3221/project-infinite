@@ -1,44 +1,18 @@
-use actix_files::NamedFile;
-use actix_session::{storage::CookieSessionStore, SessionMiddleware};
-use actix_web::{web, App, HttpResponse, HttpServer, Responder, Result};
-use std::env;
-use std::path::PathBuf;
+use actix_web::{web, HttpResponse, Result};
+use actix_session::Session;
+use serde::Deserialize;
+use reqwest::Client;
+use crate::AppState;
 
-struct AppState {
-    bot_username: String,
+#[derive(Deserialize)]
+pub struct TelegramLogin {
+    pub id: String,
+    pub first_name: String,
+    pub last_name: Option<String>,
+    pub username: String,
+    pub photo_url: Option<String>,
+    pub auth_date: String,
+    pub hash: String,
 }
 
-// Handler to serve the login page
-async fn login_page(data: web::Data<AppState>) -> Result<HttpResponse> {
-    // Load the HTML file
-    let path: PathBuf = "./static/login.html".parse().unwrap();
-    let bot_username = &data.bot_username;
-    let content = std::fs::read_to_string(&path)?;
-    let content = content.replace("<?= BOT_USERNAME ?>", bot_username);
 
-    Ok(HttpResponse::Ok()
-        .content_type("text/html; charset=utf-8")
-        .body(content))
-}
-
-#[actix_web::main]
-async fn main() -> std::io::Result<()> {
-    dotenv::dotenv().ok();
-    let bot_username = env::var("BOT_USERNAME").expect("BOT_USERNAME must be set");
-
-    HttpServer::new(move || {
-        App::new()
-            .app_data(web::Data::new(AppState {
-                bot_username: bot_username.clone(),
-            }))
-            .wrap(SessionMiddleware::new(
-                CookieSessionStore::default(),
-                actix_web::cookie::Key::generate(),
-            ))
-            .service(web::resource("/login").route(web::get().to(login_page)))
-            .service(actix_files::Files::new("/static", "./static").show_files_listing())
-    })
-    .bind("127.0.0.1:8080")?
-    .run()
-    .await
-}
